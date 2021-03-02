@@ -225,6 +225,7 @@ WriteVal PROC
 PUSH	EBP
 MOV		EBP, ESP
 
+POP		EBP
 RET 8
 WriteVal ENDP
 
