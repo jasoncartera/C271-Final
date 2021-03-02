@@ -168,7 +168,7 @@ ReadVal PROC
 	MOV		ECX, 10
 	IMUL	ECX									; Multiply usrValue by 10 to account for places
 	; If invalid here, need to pop ECX and EAX
-	JO		_invalid							; Check for overflow
+	JO		_invalid1							; Check for overflow
 	MOV		EDX, [EBP+8]						; MUL modifies EDX, so must restore to usrValue
 	MOV		[EDX], EAX							
 	POP		ECX									; Restore registers
@@ -184,6 +184,18 @@ ReadVal PROC
 	POPFD										; Restore status flags 
 	LOOP	_Start
 	JMP		_leaveProc
+
+	_invalid1:
+	POP		ECX
+	POP		EAX
+	POPFD
+	MOV		EDX, [EBP+24]
+	CALL	WriteString
+	MOV		EDX, [EBP+8]
+	MOV		EBX, 0
+	MOV		[EDX], EBX							; Restore usrValue to 0
+	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
+	JMP		_newPrompt
 
 	_invalid:	
 	POPFD										; Restore status flags if invalid
