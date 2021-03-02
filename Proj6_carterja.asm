@@ -64,6 +64,12 @@ main PROC
 	PUSH	OFFSET   usrValue
 	CALL	ReadVal
 
+<<<<<<< HEAD
+=======
+	MOV		EAX, usrValue
+	CALL	WriteInt
+
+>>>>>>> extras
 	PUSH	usrValue
 	PUSH	usrLen
 	CALL	WriteVal
@@ -131,6 +137,7 @@ ReadVal PROC
 	CLD
 	LODSB										; Load first char to AL, if + or -, continue to next char
 	CMP		AL, 43
+<<<<<<< HEAD
 	JE		_sign
 	CMP		AL, 45
 	JE		_sign
@@ -138,6 +145,20 @@ ReadVal PROC
 	JMP		_Start
 
 	_sign:
+=======
+	JE		_positive							; If positive
+	CMP		AL, 45
+	JE		_negative							; If negative value
+	MOV		ESI, [EBP+16]						; If not + or -, reload ESI 
+	JMP		_Start
+
+	_negative:
+	DEC		ECX
+	MOV		EDI, 1								; Store sign in EDI for later
+	JMP		_Start
+
+	_positive:
+>>>>>>> extras
 	DEC		ECX
 	
 	_Start:
@@ -154,6 +175,7 @@ ReadVal PROC
 	SUB		AL, 48
 	PUSHFD										; Preserve status flags to check OF
 	PUSH	EAX									; Preserve AL
+<<<<<<< HEAD
 	PUSH	ECX
 	MOV		EDX, [EBP+8]
 	MOV		EAX, [EDX]							; Move usrValue to EAX
@@ -162,10 +184,20 @@ ReadVal PROC
 	IMUL	ECX									; Multiply usrValue by 10 to account for places
 	CMP		EDX, 0
 	JNE		_invalid							; Check if EDX is used, implying EAX is extended
+=======
+	PUSH	ECX									; Preserve counter
+	MOV		EDX, [EBP+8]
+	MOV		EAX, SDWORD PTR [EDX]				; Move usrValue to EAX
+	MOV		ECX, 10
+	IMUL	ECX									; Multiply usrValue by 10 to account for places
+	; If invalid here, need to pop ECX and EAX
+	JO		_invalid1							; Check for overflow
+>>>>>>> extras
 	MOV		EDX, [EBP+8]						; MUL modifies EDX, so must restore to usrValue
 	MOV		[EDX], EAX							
 	POP		ECX									; Restore registers
 	POP		EAX
+<<<<<<< HEAD
 	ADD		[EDX], EAX							; Add integer value to user total
 	JO		_invalid							; If addition sets carry flag, result is invalid. first
 	POPFD										; Restore status flags 
@@ -174,6 +206,24 @@ ReadVal PROC
 
 	_invalid:	
 	POPFD										; Restore status flags if invalid
+=======
+	CMP		EDI, 1								; If signed, subtract instead of add
+	JE		_subtract
+	ADD		[EDX], SDWORD PTR EAX				; Add integer value to user total
+	JMP		_continue
+	_subtract:
+	SUB		[EDX], SDWORD PTR EAX
+	_continue:
+	JO		_invalid							; If addition or subtraction sets carry flag, result is invalid.
+	POPFD										; Restore status flags 
+	LOOP	_Start
+	JMP		_leaveProc
+
+	_invalid1:
+	POP		ECX
+	POP		EAX
+	POPFD
+>>>>>>> extras
 	MOV		EDX, [EBP+24]
 	CALL	WriteString
 	MOV		EDX, [EBP+8]
@@ -182,6 +232,7 @@ ReadVal PROC
 	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
 	JMP		_newPrompt
 
+<<<<<<< HEAD
 	_End:
 	MOV		ESI, [EBP+16]
 	LODSB	
@@ -194,6 +245,17 @@ ReadVal PROC
 	MOV		EDX, [EBP+8]
 	MOV		[EDX], EAX
 
+=======
+	_invalid:	
+	POPFD										; Restore status flags if invalid
+	MOV		EDX, [EBP+24]
+	CALL	WriteString
+	MOV		EDX, [EBP+8]
+	MOV		EBX, 0
+	MOV		[EDX], EBX							; Restore usrValue to 0
+	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
+	JMP		_newPrompt
+>>>>>>> extras
 
 	_leaveProc:
 	POP		EBX
