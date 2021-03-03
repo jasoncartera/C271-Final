@@ -19,15 +19,16 @@ mGetString	MACRO	prompt, usrString, stringSize, stringLength
 	MOV		EDX, usrString
 	MOV		ECX, stringSize
 	CALL	ReadString
-	MOV		stringLength, EAX
+	MOV		EDI, stringLength
+	MOV		[EDI], EAX
 
 ENDM
 
 ;----------------------------------------------------------
 ;
 ;----------------------------------------------------------
-mDisplayString	MACRO	usrString
-	MOV		EDX, usrString
+mDisplayString	MACRO	outString
+	MOV		EDX, outString
 	CALL	WriteString
 
 ENDM
@@ -46,7 +47,7 @@ prompt2			BYTE	"Please try again: ",0
 usrString		BYTE	13 DUP(?)
 usrLen			DWORD	?
 usrValue		SDWORD	0
-
+outString		BYTE	13 DUP(?)
 .code
 main PROC
 	
@@ -64,11 +65,9 @@ main PROC
 	PUSH	OFFSET   usrValue
 	CALL	ReadVal
 
-	MOV		EAX, usrValue
-	CALL	WriteInt
-
 	PUSH	usrValue
 	PUSH	usrLen
+	PUSH	OFFSET outString
 	CALL	WriteVal
 
 	Invoke ExitProcess,0	; exit to operating system
@@ -94,11 +93,12 @@ introduction ENDP
 ;------------------------------------------------------------------------
 ; Name: ReadVale
 ; Reads a value from a string input, converts string input to an integer, and validates if
-; the input is valid (no letters, symbols).
+; the input is valid (no letters, symbols). This procedure only works on 32 bit integers. 
 ; 
-; Preconditions: macro mGetString must be defined and used. Prompt1, error and promp2 must be declared
-;				 in the data segment. usrString must be declared as a buffer. usrLen 
-;				 must be declared to store the number of bytes read. 
+; Preconditions: macro mGetString must be defined and used. usrValue must be a declared SDWORD
+;				 Prompt1, error and promp2 must be declared in the data segment. 
+;				 usrString must be declared as a buffer. usrLen must be declared to store the 
+;			     number of bytes read. 
 ;
 ; Postconditions: None
 ;
@@ -131,79 +131,79 @@ ReadVal PROC
 	
 
 	_newPrompt:
-	MOV		ESI, [EBP+16]						; Load usrString to ESI
-	MOV		ECX, [EBP+32]						; Load length of string to ECX
-	MOV		EBX, [EBP+12]						; Load size of string
+		MOV		ESI, [EBP+16]						; Load usrString to ESI
+		MOV		EDI, [EBP+32]
+		MOV		ECX, [EDI]							; Load length of string to ECX
 
-	CLD
-	LODSB										; Load first char to AL, if + or -, continue to next char
-	CMP		AL, 43
-	JE		_positive							; If positive
-	CMP		AL, 45
-	JE		_negative							; If negative value
-	MOV		ESI, [EBP+16]						; If not + or -, reload ESI 
-	JMP		_Start
+		CLD
+		LODSB										; Load first char to AL, if + or -, continue to next char
+		CMP		AL, 43
+		JE		_positive							; If positive
+		CMP		AL, 45
+		JE		_negative							; If negative value
+		MOV		ESI, [EBP+16]						; If not + or -, reload ESI 
+		JMP		_Start
 
 	_negative:
-	DEC		ECX
-	MOV		EDI, 1								; Store sign in EDI for later
-	JMP		_Start
+		DEC		ECX
+		MOV		EDI, 1								; Store sign in EDI for later
+		JMP		_Start
 
 	_positive:
-	DEC		ECX
+		DEC		ECX
 	
 	_Start:
-	LODSB										; puts start of string in AL
-	CMP		AL, 48
-	JGE		_L1									; If greater than or equal to 48, check if less than 57
-	JMP		_invalid							; Otherwise reprompt
+		LODSB										; puts start of string in AL
+		CMP		AL, 48
+		JGE		_L1									; If greater than or equal to 48, check if less than 57
+		JMP		_invalid							; Otherwise reprompt
 
 	_L1:
-	CMP		AL, 57								; If greater than 57 not numeric
-	JG		_invalid
+		CMP		AL, 57								; If greater than 57 not numeric
+		JG		_invalid
 
 	_Finish:
-	SUB		AL, 48
-	PUSHFD										; Preserve status flags to check OF
-	PUSH	EAX									; Preserve AL
-	PUSH	ECX									; Preserve counter
-	MOV		EDX, [EBP+8]
-	MOV		EAX, SDWORD PTR [EDX]				; Move usrValue to EAX
-	MOV		ECX, 10
-	IMUL	ECX									; Multiply usrValue by 10 to account for places
-	; If invalid here, need to pop ECX and EAX
-	JO		_invalid1							; Check for overflow
-	MOV		EDX, [EBP+8]						; MUL modifies EDX, so must restore to usrValue
-	MOV		[EDX], EAX							
-	POP		ECX									; Restore registers
-	POP		EAX
-	CMP		EDI, 1								; If signed, subtract instead of add
-	JE		_subtract
-	ADD		[EDX], SDWORD PTR EAX				; Add integer value to user total
-	JMP		_continue
+		SUB		AL, 48
+		PUSHFD										; Preserve status flags to check OF
+		PUSH	EAX									; Preserve AL
+		PUSH	ECX									; Preserve counter
+		MOV		EDX, [EBP+8]
+		MOV		EAX, SDWORD PTR [EDX]				; Move usrValue to EAX
+		MOV		ECX, 10
+		IMUL	ECX									; Multiply usrValue by 10 to account for places
+		; If invalid here, need to pop ECX and EAX
+		JO		_invalid1							; Check for overflow
+		MOV		EDX, [EBP+8]						; MUL modifies EDX, so must restore to usrValue
+		MOV		[EDX], EAX							
+		POP		ECX									; Restore registers
+		POP		EAX
+		CMP		EDI, 1								; If signed, subtract instead of add
+		JE		_subtract
+		ADD		[EDX], SDWORD PTR EAX				; Add integer value to user total
+		JMP		_continue
 	_subtract:
-	SUB		[EDX], SDWORD PTR EAX
+		SUB		[EDX], SDWORD PTR EAX
 	_continue:
-	JO		_invalid2							; If addition or subtraction sets carry flag, result is invalid.
-	POPFD										; Restore status flags 
-	LOOP	_Start
-	JMP		_leaveProc
+		JO		_invalid2							; If addition or subtraction sets carry flag, result is invalid.
+		POPFD										; Restore status flags 
+		LOOP	_Start
+		JMP		_leaveProc
 
 	; Three different invalids because of different stack operations to test for invalid
 	_invalid1:
-	POP		ECX
-	POP		EAX
-	POPFD
-	JMP		_invalid
+		POP		ECX
+		POP		EAX
+		POPFD
+		JMP		_invalid
 	_invalid2:	
-	POPFD										; Restore status flags if invalid
+		POPFD										; Restore status flags if invalid
 	_invalid: 
-	MOV		EDX, [EBP+24]
-	CALL	WriteString
-	MOV		EDX, [EBP+8]
-	MOV		EBX, 0
-	MOV		[EDX], EBX							; Restore usrValue to 0
-	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]		
+		MOV		EDX, [EBP+24]
+		CALL	WriteString
+		MOV		EDX, [EBP+8]
+		MOV		EBX, 0
+		MOV		[EDX], EBX							; Restore usrValue to 0
+		mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]		
 	JMP		_newPrompt
 
 	_leaveProc:
@@ -223,23 +223,54 @@ ReadVal	ENDP
 ; WriteVal converts a numeric value to a string of ascii characteres. Uses the macro mDisplayString
 ; to print the ascii character to output.
 ;
-; Preconditions:
+; Preconditions: outString declared, length of user input, and user value converted to integer from ReadVal
 ;
-; Postcondtions:
+; Postcondtions: None.
 ;
-; Receives: usrLen = [ebp+8]
-;			usrValue = [ebp+12]
+; Receives: address of outString = [ebp+8]
+;			usrLen = [ebp+12]
+;			usrValue = [ebp+16]
 ;
-; Returns: 
+; Returns: Output of user number as a string to console
 ;------------------------------------------------------------------------
 WriteVal PROC
-PUSH	EBP
-MOV		EBP, ESP
+	PUSH	EBP
+	MOV		EBP, ESP
+	PUSH	EAX
+	PUSH	EBX
+	PUSH	ECX
+	PUSH	EDI
 
+	MOV		EAX, [EBP+16]						; Value from ReadVal
+	MOV		EDI, [EBP+8]						; Output string
+	MOV		ECX, [EBP+12]
+	ADD		EDI, ECX							; Set EDI to last element of integer
+	DEC		EDI
+	MOV		EBX, 0
+	MOV		[EDI+1], EBX
+	STD											; Set direction flag
 
+	; Need to test for + or -
+	_loop:
+		CDQ
+		MOV		EBX, 10								; Divisor	
+		IDIV	EBX									; Remainder is last digit of number
+		PUSH	EAX									; Store quotient for next operation
+		MOV		EAX, EDX
+		ADD		AL, 48
+		STOSB
+		POP		EAX
+	LOOP	_loop
 
-POP		EBP
-RET 8
+	mDisplayString	[EBP+8]
+
+	CLD
+	POP		EDI
+	POP		ECX
+	POP		EBX
+	POP		EAX
+	POP		EBP
+	RET 12
 WriteVal ENDP
 
 
