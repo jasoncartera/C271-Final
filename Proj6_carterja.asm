@@ -123,6 +123,10 @@ ReadVal PROC
 	PUSH	EDI
 	PUSH	EBX
 
+	MOV		EDX, [EBP+8]						; Set usrValue to 0
+	MOV		EBX, 0
+	MOV		[EDX], EBX
+	
 	mGetString	[EBP+20], [EBP+16], [EBP+12], [EBP+32]
 	
 
@@ -180,11 +184,20 @@ ReadVal PROC
 	_subtract:
 	SUB		[EDX], SDWORD PTR EAX
 	_continue:
-	JO		_invalid							; If addition or subtraction sets carry flag, result is invalid.
+	JO		_invalid2							; If addition or subtraction sets carry flag, result is invalid.
 	POPFD										; Restore status flags 
 	LOOP	_Start
 	JMP		_leaveProc
 
+	_invalid: 
+	MOV		EDX, [EBP+24]
+	CALL	WriteString
+	MOV		EDX, [EBP+8]
+	MOV		EBX, 0
+	MOV		[EDX], EBX							; Restore usrValue to 0
+	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]		
+	
+	JMP		_newPrompt
 	_invalid1:
 	POP		ECX
 	POP		EAX
@@ -197,7 +210,7 @@ ReadVal PROC
 	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
 	JMP		_newPrompt
 
-	_invalid:	
+	_invalid2:	
 	POPFD										; Restore status flags if invalid
 	MOV		EDX, [EBP+24]
 	CALL	WriteString
@@ -236,6 +249,8 @@ ReadVal	ENDP
 WriteVal PROC
 PUSH	EBP
 MOV		EBP, ESP
+
+
 
 POP		EBP
 RET 8
