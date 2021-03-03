@@ -189,6 +189,14 @@ ReadVal PROC
 	LOOP	_Start
 	JMP		_leaveProc
 
+	; Three different invalids because of different stack operations to test for invalid
+	_invalid1:
+	POP		ECX
+	POP		EAX
+	POPFD
+	JMP		_invalid
+	_invalid2:	
+	POPFD										; Restore status flags if invalid
 	_invalid: 
 	MOV		EDX, [EBP+24]
 	CALL	WriteString
@@ -196,28 +204,6 @@ ReadVal PROC
 	MOV		EBX, 0
 	MOV		[EDX], EBX							; Restore usrValue to 0
 	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]		
-	
-	JMP		_newPrompt
-	_invalid1:
-	POP		ECX
-	POP		EAX
-	POPFD
-	MOV		EDX, [EBP+24]
-	CALL	WriteString
-	MOV		EDX, [EBP+8]
-	MOV		EBX, 0
-	MOV		[EDX], EBX							; Restore usrValue to 0
-	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
-	JMP		_newPrompt
-
-	_invalid2:	
-	POPFD										; Restore status flags if invalid
-	MOV		EDX, [EBP+24]
-	CALL	WriteString
-	MOV		EDX, [EBP+8]
-	MOV		EBX, 0
-	MOV		[EDX], EBX							; Restore usrValue to 0
-	mGetString [EBP+28], [EBP+16], [EBP+12], [EBP+32]									
 	JMP		_newPrompt
 
 	_leaveProc:
