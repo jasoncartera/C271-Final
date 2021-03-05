@@ -163,6 +163,8 @@ main PROC
 
 	CALL CrLf
 
+	mDisplayString	OFFSET	goodBye
+
 	Invoke ExitProcess,0	; exit to operating system
 main ENDP
 
