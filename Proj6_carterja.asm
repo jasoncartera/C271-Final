@@ -44,31 +44,124 @@ description		BYTE	"Provide 10 signed decimal integers.",13,10,
 prompt1			BYTE	"Please enter a signed number: ",0
 error			BYTE	"You did not enter a signed number or your number was too big.",10,13,0
 prompt2			BYTE	"Please try again: ",0
+displayMsg		BYTE	"You entered the following numbers:",13,10,0
+sumMsg			BYTE	"The sum of the numbers is: ",0
+avgMsg			BYTE	"The rounded average is: ",0
+goodBye			BYTE	"Thanks for playing, goodbye!",13,10,0
 usrString		BYTE	13 DUP(?)
 usrLen			DWORD	?
 usrValue		SDWORD	0
 outString		BYTE	13 DUP(?)
+numArr			SDWORD	10 DUP(?)
+sum				SDWORD	?
+average			SDWORD	?
+
 .code
 main PROC
-	
+	; Introduction
 	PUSH	OFFSET description
 	PUSH	OFFSET intro
 	PUSH	OFFSET author
 	CALL	introduction
-	
-	PUSH	OFFSET	 usrLen
-	PUSH	OFFSET   prompt2
-	PUSH	OFFSET   error
-	PUSH	OFFSET   prompt1
-	PUSH	OFFSET   usrString
-	PUSH	SIZEOF   usrString
-	PUSH	OFFSET   usrValue
-	CALL	ReadVal
 
-	PUSH	usrValue
+	; Loop for populating numArr
+	MOV		ECX, 10						; Loop counter
+	MOV		EDI, OFFSET numArr			; Set array start to EDI
+
+	_L1:
+		PUSH	OFFSET	 usrLen
+		PUSH	OFFSET   prompt2
+		PUSH	OFFSET   error
+		PUSH	OFFSET   prompt1
+		PUSH	OFFSET   usrString
+		PUSH	SIZEOF   usrString
+		PUSH	OFFSET   usrValue
+		CALL	ReadVal
+		; Store value in array
+		MOV		EAX, usrValue
+		MOV		[EDI], EAX
+		ADD		EDI, 4						; Go to next part of array
+	LOOP	_L1
+
+	CALL	CrLf
+	; Display message 
+	mDisplayString	OFFSET displayMsg
+
+	; Loop counter to display numbers
+	MOV		ECX, 10						; Loop counter
+	MOV		ESI, OFFSET numArr			; Start of array
+	
+	_L2:
+		MOV		EAX, [ESI]
+		MOV		usrValue, EAX
+
+		; Get number of digits for WriteVal
+		PUSH	OFFSET usrLen
+		PUSH	usrValue
+		CALL	numDigits
+
+		; Call WriteVal
+		PUSH	usrValue
+		PUSH	usrLen
+		PUSH	OFFSET outString
+		CALL	WriteVal
+		CMP		ECX, 1					; If ECX is 1, skip comma
+		JE		_L4
+		MOV		AL, 44					; Write a comma and space between each number
+		CALL	WriteChar
+		MOV		AL, 32
+		CALL	WriteChar
+	_L4:
+		ADD		ESI, 4					; Increment array
+	LOOP	_L2
+
+	CALL	CrLf
+
+	; Sum Array
+	MOV		EBX, 0						; Sum accumulator
+	MOV		ECX, 10						; Counter for array size
+	MOV		ESI, OFFSET numArr
+	CLD
+	_L5:
+		LODSD	
+		ADD		EBX, EAX
+	LOOP	_L5
+
+	MOV		sum, EBX
+
+	mDisplayString	OFFSET sumMsg
+
+	; Call WriteVal to write sum value
+	PUSH	OFFSET usrLen
+	PUSH	sum
+	CALL	numDigits
+	
+	PUSH	sum
 	PUSH	usrLen
 	PUSH	OFFSET outString
 	CALL	WriteVal
+
+	CALL	CrLf
+
+	; Calculate Average
+	MOV		EBX, 10
+	MOV		EAX, sum
+	CDQ
+	IDIV	EBX
+	MOV		average, EAX
+
+	PUSH	OFFSET usrLen
+	PUSH	average
+	CALL	numDigits
+
+	mDisplayString	OFFSET avgMsg
+
+	PUSH	average
+	PUSH	usrLen
+	PUSH	OFFSET outString
+	CALL	WriteVal
+
+	CALL CrLf
 
 	Invoke ExitProcess,0	; exit to operating system
 main ENDP
@@ -147,10 +240,14 @@ ReadVal PROC
 	_negative:
 		DEC		ECX
 		MOV		EDI, 1								; Store sign in EDI for later
+		MOV		EDX, [EBP+32]						; If - sign, subtract 1 from length
+		DEC		DWORD PTR [EDX]
 		JMP		_Start
 
 	_positive:
 		DEC		ECX
+		MOV		EDX, [EBP+32]
+		DEC		DWORD PTR [EDX]						; if + sign, subtract 1 from length
 	
 	_Start:
 		LODSB										; puts start of string in AL
@@ -221,7 +318,8 @@ ReadVal	ENDP
 ; Name: WriteVal
 ; 
 ; WriteVal converts a numeric value to a string of ascii characteres. Uses the macro mDisplayString
-; to print the ascii character to output.
+; to print the ascii character to output. Output string must be less than or = to 13 bytes including 
+; the null terminator.
 ;
 ; Preconditions: outString declared, length of user input, and user value converted to integer from ReadVal
 ;
@@ -243,14 +341,21 @@ WriteVal PROC
 
 	MOV		EAX, [EBP+16]						; Value from ReadVal
 	MOV		EDI, [EBP+8]						; Output string
-	MOV		ECX, [EBP+12]
-	ADD		EDI, ECX							; Set EDI to last element of integer
-	DEC		EDI
-	MOV		EBX, 0
-	MOV		[EDI+1], EBX
-	STD											; Set direction flag
+	MOV		ECX, [EBP+12]						; usrLen
+	CMP		EAX, 0
+	JNL		_positive
+	MOV		AL, 45
+	STOSB	
+	MOV		EAX, [EBP+16]
+	MOV		EBX, -1
+	IMUL	EBX
+	_positive:
+		ADD		EDI, ECX							; Set EDI to last element of integer
+		DEC		EDI									; Sub 1 to account for null terminator in usrLen
+		MOV		EBX, 0								
+		MOV		[EDI+1], EBX						; Insert null terminator
+		STD											; Set direction flag
 
-	; Need to test for + or -
 	_loop:
 		CDQ
 		MOV		EBX, 10								; Divisor	
@@ -273,5 +378,35 @@ WriteVal PROC
 	RET 12
 WriteVal ENDP
 
+
+; usrValue = [EBP+8] (value)
+; usrLen = [EBP+12]  (reference)
+numDigits	PROC
+	PUSH	EBP
+	MOV		EBP, ESP
+	PUSH	ECX
+	PUSH	EAX
+	PUSH	EBX
+
+	MOV		ECX, 0
+	MOV		EBX, 10
+	MOV		EAX, [EBP+8]
+	_L1:
+		CDQ
+		IDIV	EBX
+		INC		ECX
+		CMP		EAX, 0
+		JNE		_L1
+
+	; Number of digits 
+	MOV		EAX, [EBP+12]
+	MOV		[EAX], ECX				; Length of digit for WriteVal
+
+	POP		EBX
+	POP		EAX
+	POP		ECX
+	POP		EBP
+	RET		8
+numDigits	ENDP
 
 END main
