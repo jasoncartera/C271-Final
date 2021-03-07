@@ -5,13 +5,32 @@ TITLE String Primitives and Macros     (Proj6_carterja.asm)
 ; OSU email address: carterja@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 6                Due Date: March 14, 2021
-; Description: 
+; Description: Project 6 prompts a user for 10 numbers. The program converts the string input to signed integer values.
+;			   The program then stores the integers in an array. The program converts each integer in the array to a string
+;			   and displays the entered numbers. Finally the sum and average are calculated. 
 ;
 
 INCLUDE Irvine32.inc
 
 ; ---------------------------------------------------------
-; 
+; Name: mGetString
+;
+; Prompts a user for a string and stores the string.
+;
+; Preconditions: Do not use EDX, ECX, EAX, or EDI as arugment. User string must
+;                no exceed 13 characters, including the null terminator. 
+;
+; Postconditions: None
+;
+; Receives:
+; prompt = string address
+; usrString = offset of empty byte array to store user input
+; stringSize = Buffer size of usrString
+; stringLength = offset to data label which will store length of string inputed in bytes
+;
+; Returns: 
+; usrString = populated string from input
+; stringLength = length of input string in bytes
 ;----------------------------------------------------------
 mGetString	MACRO	prompt, usrString, stringSize, stringLength
 	MOV		EDX, prompt
@@ -25,7 +44,15 @@ mGetString	MACRO	prompt, usrString, stringSize, stringLength
 ENDM
 
 ;----------------------------------------------------------
+; Name: mDisplayString
 ;
+; Displays a given string
+; 
+; Preconditions: do not use EDX as an argument. Must have string initalized to write to output.
+;
+; Receives: outString = address of string to display
+;
+; Returns: nothing
 ;----------------------------------------------------------
 mDisplayString	MACRO	outString
 	MOV		EDX, outString
@@ -33,6 +60,8 @@ mDisplayString	MACRO	outString
 
 ENDM
 
+; Maximum numbers to enter 
+MAX = 10
 
 .data
 
@@ -57,6 +86,8 @@ sum				SDWORD	?
 average			SDWORD	?
 
 .code
+
+
 main PROC
 	; Introduction
 	PUSH	OFFSET description
@@ -65,9 +96,10 @@ main PROC
 	CALL	introduction
 
 	; Loop for populating numArr
-	MOV		ECX, 10						; Loop counter
+	MOV		ECX, 10						; Loop counter for 10 numbers
 	MOV		EDI, OFFSET numArr			; Set array start to EDI
 
+	CLD
 	_L1:
 		PUSH	OFFSET	 usrLen
 		PUSH	OFFSET   prompt2
@@ -79,20 +111,19 @@ main PROC
 		CALL	ReadVal
 		; Store value in array
 		MOV		EAX, usrValue
-		MOV		[EDI], EAX
-		ADD		EDI, 4						; Go to next part of array
-	LOOP	_L1
+		STOSD							; Store in array
+		LOOP	_L1
 
 	CALL	CrLf
 	; Display message 
 	mDisplayString	OFFSET displayMsg
 
 	; Loop counter to display numbers
-	MOV		ECX, 10						; Loop counter
+	MOV		ECX, MAX					; Loop counter for 10 numbers
 	MOV		ESI, OFFSET numArr			; Start of array
 	
 	_L2:
-		MOV		EAX, [ESI]
+		LODSD							; Load array
 		MOV		usrValue, EAX
 
 		; Get number of digits for WriteVal
@@ -112,30 +143,30 @@ main PROC
 		MOV		AL, 32
 		CALL	WriteChar
 	_L4:
-		ADD		ESI, 4					; Increment array
-	LOOP	_L2
+		LOOP	_L2
 
 	CALL	CrLf
 
 	; Sum Array
 	MOV		EBX, 0						; Sum accumulator
-	MOV		ECX, 10						; Counter for array size
+	MOV		ECX, MAX					; Counter for array size of 10 numbers
 	MOV		ESI, OFFSET numArr
 	CLD
 	_L5:
 		LODSD	
 		ADD		EBX, EAX
-	LOOP	_L5
+		LOOP	_L5
 
 	MOV		sum, EBX
 
 	mDisplayString	OFFSET sumMsg
 
-	; Call WriteVal to write sum value
+	; Get number of digits in sum
 	PUSH	OFFSET usrLen
 	PUSH	sum
 	CALL	numDigits
 	
+	; Call WriteVal to conver sum to string
 	PUSH	sum
 	PUSH	usrLen
 	PUSH	OFFSET outString
@@ -144,18 +175,20 @@ main PROC
 	CALL	CrLf
 
 	; Calculate Average
-	MOV		EBX, 10
+	MOV		EBX, MAX					; Sum divided by 10 for 10 numbers entered
 	MOV		EAX, sum
 	CDQ
 	IDIV	EBX
 	MOV		average, EAX
 
+	; Determine number of digits in average
 	PUSH	OFFSET usrLen
 	PUSH	average
 	CALL	numDigits
 
 	mDisplayString	OFFSET avgMsg
 
+	; Display average as a string
 	PUSH	average
 	PUSH	usrLen
 	PUSH	OFFSET outString
@@ -168,7 +201,21 @@ main PROC
 	Invoke ExitProcess,0	; exit to operating system
 main ENDP
 
-
+;------------------------------------------------------------------------
+; Name: Introduction 
+; 
+; Displays strings introducing the program 
+;
+; Preconditions: Intro, author and description strings defined in .data
+;
+; Postconditions: None
+;
+; Receives: [ebp + 8] = offset to author 
+;			[ebp + 12] = offset to intro
+;			[ebp + 16] = offset to description
+;		
+; Returns: Nothing
+;------------------------------------------------------------------------
 introduction PROC
 	PUSH	EBP
 	MOV		EBP, ESP
@@ -186,14 +233,17 @@ introduction PROC
 introduction ENDP
 
 ;------------------------------------------------------------------------
-; Name: ReadVale
-; Reads a value from a string input, converts string input to an integer, and validates if
-; the input is valid (no letters, symbols). This procedure only works on 32 bit integers. 
+; Name: ReadVal
+; Reads a value from a string input, converts string input to an integer. Proc validates if
+; the input is valid (no letters or symbols other than + and -). This procedure only works 
+; if converting 32 bit signed integers. 
 ; 
-; Preconditions: macro mGetString must be defined and used. usrValue must be a declared SDWORD
-;				 Prompt1, error and promp2 must be declared in the data segment. 
-;				 usrString must be declared as a buffer. usrLen must be declared to store the 
-;			     number of bytes read. 
+; Preconditions: macro mGetString must be defined and used. 
+;				 size of usrString is the buffer size for mGetString (13 bytes)
+;				 usrValue must be a declared SDWORD
+;				 Prompt1, error and promp2 must be declared strings
+;				 usrString must be a BYTE array of characters
+;				 usrLen must contain the length of the usrString
 ;
 ; Postconditions: None
 ;
@@ -288,14 +338,15 @@ ReadVal PROC
 		LOOP	_Start
 		JMP		_leaveProc
 
-	; Three different invalids because of different stack operations to test for invalid
+	; Invalid 1 resturs ECX and EAX and status flags before re-prompt
 	_invalid1:
-		POP		ECX
+		POP		ECX						
 		POP		EAX
 		POPFD
 		JMP		_invalid
+	; Invalid 2 only restores status flags before re-prompt
 	_invalid2:	
-		POPFD										; Restore status flags if invalid
+		POPFD										
 	_invalid: 
 		MOV		EDX, [EBP+24]
 		CALL	WriteString
@@ -323,7 +374,9 @@ ReadVal	ENDP
 ; to print the ascii character to output. Output string must be less than or = to 13 bytes including 
 ; the null terminator.
 ;
-; Preconditions: outString declared, length of user input, and user value converted to integer from ReadVal
+; Preconditions: outString declared as a byte array size 13 bytes
+;				 length of user input must be the length of the string input converted to digit
+;				 usrValue must be a SDWORD 
 ;
 ; Postcondtions: None.
 ;
@@ -380,9 +433,21 @@ WriteVal PROC
 	RET 12
 WriteVal ENDP
 
+;------------------------------------------------------------------------
+; Name: numDigits
+; 
+; Returns the number of digits in an integer
+;
+; Preconditions:The integer is type SDWORD
+;
+; Postcondtions: None.
+;
+; Receives: usrValue = [EBP+8] 
+;           usrLen = [EBP+12]
+;
+; Returns: Output of user number as a string to console
+;------------------------------------------------------------------------
 
-; usrValue = [EBP+8] (value)
-; usrLen = [EBP+12]  (reference)
 numDigits	PROC
 	PUSH	EBP
 	MOV		EBP, ESP
