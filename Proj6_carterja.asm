@@ -97,7 +97,7 @@ main PROC
 
 	; Loop for populating numArr
 	MOV		ECX, 10						; Loop counter for 10 numbers
-	MOV		EDI, OFFSET numArr			; Set array start to EDI
+	MOV		EDI, OFFSET numArr			
 
 	CLD
 	_L1:
@@ -109,16 +109,14 @@ main PROC
 		PUSH	SIZEOF   usrString
 		PUSH	OFFSET   usrValue
 		CALL	ReadVal
-		; Store value in array
 		MOV		EAX, usrValue
 		STOSD							; Store in array
 		LOOP	_L1
 
 	CALL	CrLf
-	; Display message 
+	; Display message of entered numbers
 	mDisplayString	OFFSET displayMsg
 
-	; Loop counter to display numbers
 	MOV		ECX, MAX					; Loop counter for 10 numbers
 	MOV		ESI, OFFSET numArr			; Start of array
 	
