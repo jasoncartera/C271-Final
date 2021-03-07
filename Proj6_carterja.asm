@@ -1,7 +1,7 @@
 TITLE String Primitives and Macros     (Proj6_carterja.asm)
 
 ; Author: Jason Carter
-; Last Modified: 3/1/2021
+; Last Modified: 3/6/2021
 ; OSU email address: carterja@oregonstate.edu
 ; Course number/section:   CS271 Section 400
 ; Project Number: 6                Due Date: March 14, 2021
