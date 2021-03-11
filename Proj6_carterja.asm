@@ -33,8 +33,7 @@ INCLUDE Irvine32.inc
 ; stringLength = length of input string in bytes
 ;----------------------------------------------------------
 mGetString	MACRO	prompt, usrString, stringSize, stringLength
-	MOV		EDX, prompt
-	CALL	WriteString
+	mDisplayString	prompt
 	MOV		EDX, usrString
 	MOV		ECX, stringSize
 	CALL	ReadString
@@ -77,6 +76,7 @@ displayMsg		BYTE	"You entered the following numbers:",13,10,0
 sumMsg			BYTE	"The sum of the numbers is: ",0
 avgMsg			BYTE	"The rounded average is: ",0
 goodBye			BYTE	"Thanks for playing, goodbye!",13,10,0
+commaSpace		BYTE	", ",0
 usrString		BYTE	13 DUP(?)
 usrLen			DWORD	?
 usrValue		SDWORD	0
@@ -136,10 +136,7 @@ main PROC
 		CALL	WriteVal
 		CMP		ECX, 1					; If ECX is 1, skip comma
 		JE		_L4
-		MOV		AL, 44					; Write a comma and space between each number
-		CALL	WriteChar
-		MOV		AL, 32
-		CALL	WriteChar
+		mDisplayString	OFFSET commaSpace
 	_L4:
 		LOOP	_L2
 
@@ -164,7 +161,7 @@ main PROC
 	PUSH	sum
 	CALL	numDigits
 	
-	; Call WriteVal to conver sum to string
+	; Call WriteVal to convert sum to string
 	PUSH	sum
 	PUSH	usrLen
 	PUSH	OFFSET outString
@@ -178,7 +175,11 @@ main PROC
 	CDQ
 	IDIV	EBX
 	MOV		average, EAX
+	CMP		average, 0					; If average is negative DEC for floor rounding
+	JG		_positiveAvg
+	DEC		average
 
+	_positiveAvg:
 	; Determine number of digits in average
 	PUSH	OFFSET usrLen
 	PUSH	average
@@ -218,12 +219,10 @@ introduction PROC
 	PUSH	EBP
 	MOV		EBP, ESP
 	PUSH	EDX
-	MOV		EDX, [EBP+12]
-	CALL	WriteString
-	MOV		EDX, [EBP+8]
-	CALL	WriteString
-	MOV		EDX, [EBP+16]
-	CALL	WriteString
+
+	mDisplayString	[EBP+12]
+	mDisplayString	[EBP+8]
+	mDisplayString	[EBP+16]
 
 	POP		EDX
 	POP		EBP
