@@ -1,5 +1,5 @@
 # C271-Final
-Final Project at Oregon State CS271
+Final Project at Oregon State University CS271 - Computer Architecture and Assembly Language
 MASM x86 Assembly 
 
 - Low level implementation of a simple terminal i/o.
